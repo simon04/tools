@@ -1,11 +1,12 @@
 use crate::prelude::*;
-use rome_formatter::write;
+use rome_formatter::{write, CstFormatContext};
 
 use crate::js::expressions::call_arguments::is_test_call_expression;
 use crate::js::lists::parameter_list::{
     AnyParameter, FormatJsAnyParameterList, JsAnyParameterList,
 };
 
+use crate::builders::format_delimited;
 use rome_js_syntax::{
     JsAnyConstructorParameter, JsAnyFormalParameter, JsCallExpression, JsConstructorParameters,
     JsParameters, JsSyntaxKind, JsSyntaxToken, TsType,
@@ -18,6 +19,11 @@ pub struct FormatJsParameters;
 impl FormatNodeRule<JsParameters> for FormatJsParameters {
     fn fmt_fields(&self, node: &JsParameters, f: &mut JsFormatter) -> FormatResult<()> {
         FormatJsAnyParameters::from(node.clone()).fmt(f)
+    }
+
+    fn fmt_dangling_comments(&self, _: &JsParameters, _: &mut JsFormatter) -> FormatResult<()> {
+        // Formatted inside of `FormatJsAnyParameters
+        Ok(())
     }
 }
 
@@ -39,9 +45,12 @@ impl Format<JsFormatContext> for FormatJsAnyParameters {
             Err(_) => false,
         });
 
-        let can_hug = should_hug_function_parameters(self)? && !has_any_decorated_parameter;
+        let can_hug = should_hug_function_parameters(self, f.context().comments())?
+            && !has_any_decorated_parameter;
 
-        let layout = if can_hug || self.is_in_test_call()? {
+        let layout = if list.is_empty() {
+            ParameterLayout::NoParameters
+        } else if can_hug || self.is_in_test_call()? {
             ParameterLayout::Hug
         } else {
             ParameterLayout::Default
@@ -51,6 +60,16 @@ impl Format<JsFormatContext> for FormatJsAnyParameters {
         let r_paren_token = self.r_paren_token()?;
 
         match layout {
+            ParameterLayout::NoParameters => {
+                write!(
+                    f,
+                    [
+                        l_paren_token.format(),
+                        format_dangling_comments(self.syntax()).with_soft_block_indent(),
+                        r_paren_token.format()
+                    ]
+                )
+            }
             ParameterLayout::Hug => {
                 write!(
                     f,
@@ -138,6 +157,11 @@ impl FormatJsAnyParameters {
 
 #[derive(Copy, Debug, Clone, Eq, PartialEq)]
 pub enum ParameterLayout {
+    /// ```javascript
+    /// function test() {}
+    /// ```
+    NoParameters,
+
     /// Enforce that the opening and closing parentheses aren't separated from the first token of the parameter.
     /// For example, to enforce that the `{`  and `}` of an object expression are formatted on the same line
     /// as the `(` and `)` tokens even IF the object expression itself breaks across multiple lines.
@@ -163,7 +187,10 @@ pub enum ParameterLayout {
     Default,
 }
 
-fn should_hug_function_parameters(parameters: &FormatJsAnyParameters) -> FormatResult<bool> {
+fn should_hug_function_parameters(
+    parameters: &FormatJsAnyParameters,
+    comments: &JsComments,
+) -> FormatResult<bool> {
     use rome_js_syntax::{
         JsAnyBinding::*, JsAnyBindingPattern::*, JsAnyExpression::*, JsAnyFormalParameter::*,
         JsAnyParameter::*,
@@ -175,14 +202,10 @@ fn should_hug_function_parameters(parameters: &FormatJsAnyParameters) -> FormatR
         return Ok(false);
     }
 
-    if parameters.r_paren_token()?.has_leading_comments() {
-        return Ok(false);
-    }
-
     // SAFETY: Safe because of the length check above
     let only_parameter = list.first().unwrap()?;
 
-    if only_parameter.syntax().has_comments_direct() {
+    if comments.has_comments(only_parameter.syntax()) {
         return Ok(false);
     }
 

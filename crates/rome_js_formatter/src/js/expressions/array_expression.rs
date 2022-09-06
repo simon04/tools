@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use crate::builders::format_delimited;
 use crate::parentheses::NeedsParentheses;
 use rome_formatter::write;
 use rome_js_syntax::{
@@ -19,11 +20,22 @@ impl FormatNodeRule<JsArrayExpression> for FormatJsArrayExpression {
             r_brack_token,
         } = node.as_fields();
 
-        if should_break(&elements)? {
+        let r_brack_token = r_brack_token?;
+
+        if elements.is_empty() {
             write!(
                 f,
                 [
-                    format_delimited(&l_brack_token?, &elements.format(), &r_brack_token?)
+                    l_brack_token.format(),
+                    format_dangling_comments(node.syntax()).with_block_indent(),
+                    r_brack_token.format(),
+                ]
+            )
+        } else if should_break(&elements)? {
+            write!(
+                f,
+                [
+                    format_delimited(&l_brack_token?, &elements.format(), &r_brack_token)
                         .block_indent()
                 ]
             )
@@ -34,16 +46,23 @@ impl FormatNodeRule<JsArrayExpression> for FormatJsArrayExpression {
 
             write!(
                 f,
-                [
-                    format_delimited(&l_brack_token?, &elements, &r_brack_token?)
-                        .soft_block_indent_with_group_id(Some(group_id))
-                ]
+                [format_delimited(&l_brack_token?, &elements, &r_brack_token)
+                    .soft_block_indent_with_group_id(Some(group_id))]
             )
         }
     }
 
     fn needs_parentheses(&self, item: &JsArrayExpression) -> bool {
         item.needs_parentheses()
+    }
+
+    fn fmt_dangling_comments(
+        &self,
+        _: &JsArrayExpression,
+        _: &mut JsFormatter,
+    ) -> FormatResult<()> {
+        // Formatted inside of `fmt_fields`
+        Ok(())
     }
 }
 

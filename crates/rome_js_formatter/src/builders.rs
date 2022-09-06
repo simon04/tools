@@ -1,12 +1,11 @@
 use crate::prelude::*;
 use crate::AsFormat;
-use rome_formatter::token::{FormatInserted, FormatInsertedCloseParen, FormatInsertedOpenParen};
+use rome_formatter::token::{FormatLeadingComments, FormatTrailingComments};
 use rome_formatter::{
-    format_args, write, Argument, Arguments, CstFormatContext, FormatContext, GroupId,
-    PreambleBuffer, VecBuffer,
+    write, Argument, Arguments, CstFormatContext, FormatContext, GroupId, VecBuffer,
 };
-use rome_js_syntax::{JsLanguage, JsSyntaxKind, JsSyntaxNode, JsSyntaxToken};
-use rome_rowan::{AstNode, Direction, Language, SyntaxElement, SyntaxTriviaPiece, TextRange};
+use rome_js_syntax::{JsLanguage, JsSyntaxNode, JsSyntaxToken};
+use rome_rowan::{AstNode, Direction, SyntaxElement, TextRange};
 
 /// Formats a node using its [`AsFormat`] implementation but falls back to printing the node as
 /// it is in the source document if the formatting returns an [`FormatError`].
@@ -36,123 +35,10 @@ where
             Err(_) => {
                 f.restore_state_snapshot(snapshot);
 
-                // Lists that yield errors are formatted as they were unknown nodes.
+                // Lists that yield errors are formatted as they were suppressed nodes.
                 // Doing so, the formatter formats the nodes/tokens as is.
-                format_unknown_node(self.node.syntax()).fmt(f)
+                format_suppressed_node(self.node.syntax()).fmt(f)
             }
-        }
-    }
-}
-
-pub fn format_inserted(kind: JsSyntaxKind) -> FormatInserted<JsLanguage> {
-    FormatInserted::new(
-        kind,
-        kind.to_string().expect("Expected a punctuation token"),
-    )
-}
-
-pub fn format_inserted_open_paren(
-    before_token: Option<&JsSyntaxToken>,
-    kind: JsSyntaxKind,
-) -> FormatInsertedOpenParen<JsLanguage> {
-    FormatInsertedOpenParen::new(
-        before_token,
-        kind,
-        kind.to_string()
-            .expect("Expected a punctuation token as the open paren token."),
-    )
-}
-
-pub fn format_inserted_close_paren(
-    after_token: Option<&JsSyntaxToken>,
-    kind: JsSyntaxKind,
-    f: &mut JsFormatter,
-) -> FormatInsertedCloseParen<JsLanguage> {
-    FormatInsertedCloseParen::after_token(
-        after_token,
-        kind,
-        kind.to_string()
-            .expect("Expected a punctuation token as the close paren token."),
-        f,
-    )
-}
-
-/// Adds parentheses around some content
-/// Ensures that the leading trivia of the `first_content_token` is moved
-/// before the opening parentheses and the trailing trivia of the `last_content_token`
-/// is moved after the closing parentheses.
-///
-/// # Examples
-/// Adding parentheses around the string literal
-///
-/// ```javascript
-/// /* leading */ "test" /* trailing */;
-/// ```
-///
-/// becomes
-///
-/// ```javascript
-/// /* leading */ ("test") /* trailing */;
-/// ```
-pub fn format_parenthesize<'a, Content>(
-    first_content_token: Option<&'a JsSyntaxToken>,
-    content: &'a Content,
-    last_content_token: Option<&'a JsSyntaxToken>,
-) -> FormatParenthesize<'a>
-where
-    Content: Format<JsFormatContext>,
-{
-    FormatParenthesize {
-        first_content_token,
-        content: Argument::new(content),
-        last_content_token,
-        grouped: false,
-    }
-}
-
-/// Adds parentheses around an expression
-#[derive(Clone)]
-pub struct FormatParenthesize<'a> {
-    grouped: bool,
-    first_content_token: Option<&'a JsSyntaxToken>,
-    content: Argument<'a, JsFormatContext>,
-    last_content_token: Option<&'a JsSyntaxToken>,
-}
-
-impl FormatParenthesize<'_> {
-    /// Groups the open parenthesis, the content, and the closing parenthesis inside of a group
-    /// and indents the content with a soft block indent.
-    pub fn grouped_with_soft_block_indent(mut self) -> Self {
-        self.grouped = true;
-        self
-    }
-}
-
-impl Format<JsFormatContext> for FormatParenthesize<'_> {
-    fn fmt(&self, f: &mut Formatter<JsFormatContext>) -> FormatResult<()> {
-        let format_open_paren =
-            format_inserted_open_paren(self.first_content_token, JsSyntaxKind::L_PAREN);
-        let format_close_paren =
-            format_inserted_close_paren(self.last_content_token, JsSyntaxKind::R_PAREN, f);
-
-        if self.grouped {
-            write!(
-                f,
-                [group(&format_args![
-                    format_open_paren,
-                    soft_block_indent(&Arguments::from(&self.content)),
-                    format_close_paren
-                ])]
-            )
-        } else {
-            write!(
-                f,
-                [
-                    format_open_paren,
-                    Arguments::from(&self.content),
-                    format_close_paren
-                ]
-            )
         }
     }
 }
@@ -173,6 +59,7 @@ pub fn format_verbatim_node(node: &JsSyntaxNode) -> FormatVerbatimNode {
         kind: VerbatimKind::Verbatim {
             length: node.text_range().len(),
         },
+        format_comments: true,
     }
 }
 
@@ -180,7 +67,9 @@ pub fn format_verbatim_node(node: &JsSyntaxNode) -> FormatVerbatimNode {
 pub struct FormatVerbatimNode<'node> {
     node: &'node JsSyntaxNode,
     kind: VerbatimKind,
+    format_comments: bool,
 }
+
 impl Format<JsFormatContext> for FormatVerbatimNode<'_> {
     fn fmt(&self, f: &mut JsFormatter) -> FormatResult<()> {
         for element in self.node.descendants_with_tokens(Direction::Next) {
@@ -192,22 +81,9 @@ impl Format<JsFormatContext> for FormatVerbatimNode<'_> {
             }
         }
 
-        fn skip_whitespace<L: Language>(piece: &SyntaxTriviaPiece<L>) -> bool {
-            piece.is_newline() || piece.is_whitespace()
-        }
-
-        fn write_trivia_token<L: Language>(
-            f: &mut JsFormatter,
-            piece: SyntaxTriviaPiece<L>,
-        ) -> FormatResult<()> {
-            syntax_token_cow_slice(
-                normalize_newlines(piece.text(), LINE_TERMINATORS),
-                &piece.token(),
-                piece.text_range().start(),
-            )
-            .fmt(f)
-        }
-
+        // The trimmed range of a node is its range without any of its leading or trailing trivia.
+        // Except for nodes that used to be parenthesized, the range than covers the source from the
+        // `(` to the `)` (the trimmed range of the parenthesized expression, not the inner expression)
         let trimmed_source_range = f.context().source_map().map_or_else(
             || self.node.text_trimmed_range(),
             |source_map| source_map.trimmed_source_range(self.node),
@@ -224,25 +100,42 @@ impl Format<JsFormatContext> for FormatVerbatimNode<'_> {
                         .map_or_else(|| range, |source_map| source_map.source_range(range))
                 }
 
-                for leading_trivia in self
+                // Format all leading comments that are outside of the node's source range.
+                if self.format_comments {
+                    let comments = f.context().comments().clone();
+                    let leading_comments = comments.leading_comments(self.node);
+
+                    let outside_trimmed_range = leading_comments.partition_point(|comment| {
+                        comment.piece().text_range().end() <= trimmed_source_range.start()
+                    });
+
+                    write!(
+                        f,
+                        [FormatLeadingComments::Comments(
+                            &leading_comments[..outside_trimmed_range]
+                        )]
+                    )?;
+                }
+
+                // Find the first skipped token trivia, if any, and include it in the verbatim range because
+                // the comments only format **up to** but not including skipped token trivia.
+                let start_source = self
                     .node
                     .first_leading_trivia()
                     .into_iter()
                     .flat_map(|trivia| trivia.pieces())
-                    .skip_while(skip_whitespace)
-                {
-                    let trivia_source_range = source_range(f, leading_trivia.text_range());
-
-                    if trivia_source_range.start() >= trimmed_source_range.start() {
-                        break;
-                    }
-
-                    write_trivia_token(f, leading_trivia)?;
-                }
+                    .filter(|trivia| trivia.is_skipped())
+                    .map(|trivia| source_range(f, trivia.text_range()).start())
+                    .take_while(|start| *start < trimmed_source_range.start())
+                    .next()
+                    .unwrap_or_else(|| trimmed_source_range.start());
 
                 let original_source = f.context().source_map().map_or_else(
                     || self.node.text_trimmed().to_string(),
-                    |source_map| source_map.text()[trimmed_source_range].to_string(),
+                    |source_map| {
+                        source_map.text()[trimmed_source_range.cover_offset(start_source)]
+                            .to_string()
+                    },
                 );
 
                 dynamic_text(
@@ -251,30 +144,24 @@ impl Format<JsFormatContext> for FormatVerbatimNode<'_> {
                 )
                 .fmt(f)?;
 
-                let mut trailing_trivia = self
-                    .node
-                    .last_trailing_trivia()
-                    .into_iter()
-                    .flat_map(|trivia| trivia.pieces());
+                // Format all trailing comments that are outside of the trimmed range.
+                if self.format_comments {
+                    let comments = f.context().comments().clone();
 
-                let mut trailing_back = trailing_trivia.by_ref().rev().peekable();
+                    let trailing_comments = comments.trailing_comments(self.node);
 
-                while let Some(trailing) = trailing_back.peek() {
-                    let is_whitespace = skip_whitespace(trailing);
+                    let outside_trimmed_range_start =
+                        trailing_comments.partition_point(|comment| {
+                            source_range(f, comment.piece().text_range()).end()
+                                <= trimmed_source_range.end()
+                        });
 
-                    let trailing_source_range = source_range(f, trailing.text_range());
-                    let is_in_trimmed_range =
-                        trailing_source_range.start() < trimmed_source_range.end();
-
-                    if is_whitespace || is_in_trimmed_range {
-                        trailing_back.next();
-                    } else {
-                        break;
-                    }
-                }
-
-                for trailing_trivia in trailing_trivia {
-                    write_trivia_token(f, trailing_trivia)?;
+                    write!(
+                        f,
+                        [FormatTrailingComments::Comments(
+                            &trailing_comments[outside_trimmed_range_start..]
+                        )]
+                    )?;
                 }
 
                 Ok(())
@@ -289,6 +176,13 @@ impl Format<JsFormatContext> for FormatVerbatimNode<'_> {
         };
 
         f.write_element(FormatElement::Verbatim(verbatim))
+    }
+}
+
+impl FormatVerbatimNode<'_> {
+    pub fn skip_comments(mut self) -> Self {
+        self.format_comments = false;
+        self
     }
 }
 
@@ -308,6 +202,7 @@ impl Format<JsFormatContext> for FormatUnknownNode<'_> {
         FormatVerbatimNode {
             node: self.node,
             kind: VerbatimKind::Unknown,
+            format_comments: true,
         }
         .fmt(f)
     }
@@ -315,28 +210,35 @@ impl Format<JsFormatContext> for FormatUnknownNode<'_> {
 
 /// Format a node having formatter suppression comment applied to it
 pub fn format_suppressed_node(node: &JsSyntaxNode) -> FormatSuppressedNode {
-    FormatSuppressedNode { node }
+    FormatSuppressedNode {
+        node,
+        format_comments: true,
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct FormatSuppressedNode<'node> {
     node: &'node JsSyntaxNode,
+    format_comments: bool,
 }
 
 impl Format<JsFormatContext> for FormatSuppressedNode<'_> {
     fn fmt(&self, f: &mut JsFormatter) -> FormatResult<()> {
-        // Insert a force a line break to ensure the suppression comment is on its own line
-        // and correctly registers as a leading trivia on the opening token of this node
         write!(
             f,
-            [
-                hard_line_break(),
-                FormatVerbatimNode {
-                    node: self.node,
-                    kind: VerbatimKind::Suppressed
-                }
-            ]
+            [FormatVerbatimNode {
+                node: self.node,
+                kind: VerbatimKind::Suppressed,
+                format_comments: self.format_comments
+            }]
         )
+    }
+}
+
+impl FormatSuppressedNode<'_> {
+    pub fn skip_comments(mut self) -> Self {
+        self.format_comments = false;
+        self
     }
 }
 
@@ -359,6 +261,7 @@ pub fn format_delimited<'a, 'content>(
     }
 }
 
+// FIXME delete `BlockIndent`, maybe delete soft_block_indent` and spaces too?
 #[derive(Copy, Clone)]
 pub struct FormatDelimited<'a, 'content> {
     open_token: &'a JsSyntaxToken,
@@ -414,45 +317,21 @@ impl Format<JsFormatContext> for FormatDelimited<'_, '_> {
             grouped,
         } = self;
 
-        let open_delimiter = format_open_delimiter(open_token);
-        let close_delimiter = format_close_delimiter(close_token);
-
-        open_delimiter.format_leading_trivia().fmt(f)?;
-
-        let open_token_trailing_trivia = open_delimiter.format_trailing_trivia();
-
-        let close_token_leading_trivia = close_delimiter.format_leading_trivia();
-
         let delimited = format_with(|f| {
-            open_delimiter.format_token().fmt(f)?;
+            open_token.format().fmt(f)?;
 
             let format_content = format_with(|f| f.write_fmt(Arguments::from(content)));
 
             match mode {
-                DelimitedMode::BlockIndent => block_indent(&format_args![
-                    open_token_trailing_trivia,
-                    format_content, close_token_leading_trivia
-                ])
-                .fmt(f)?,
-                DelimitedMode::SoftBlockIndent(_) => soft_block_indent(&format_args![
-                    open_token_trailing_trivia,
-                    format_content, close_token_leading_trivia
-                ])
-                .fmt(f)?,
+                DelimitedMode::BlockIndent => block_indent(&format_content).fmt(f)?,
+                DelimitedMode::SoftBlockIndent(_) => soft_block_indent(&format_content).fmt(f)?,
                 DelimitedMode::SoftBlockSpaces(_) => {
                     let mut is_empty = true;
 
                     let format_content = format_once(|f| {
                         let mut recording = f.start_recording();
 
-                        write!(
-                            recording,
-                            [
-                                open_token_trailing_trivia,
-                                format_content,
-                                close_token_leading_trivia
-                            ]
-                        )?;
+                        write!(recording, [format_content])?;
 
                         is_empty = recording.stop().is_empty();
 
@@ -467,7 +346,7 @@ impl Format<JsFormatContext> for FormatDelimited<'_, '_> {
                 }
             };
 
-            close_delimiter.format_token().fmt(f)
+            close_token.format().fmt(f)
         });
 
         match mode {
@@ -484,7 +363,7 @@ impl Format<JsFormatContext> for FormatDelimited<'_, '_> {
             DelimitedMode::BlockIndent => write!(f, [delimited])?,
         };
 
-        write!(f, [format_trailing_trivia(close_token)])
+        Ok(())
     }
 }
 
@@ -493,92 +372,4 @@ enum DelimitedMode {
     BlockIndent,
     SoftBlockIndent(Option<GroupId>),
     SoftBlockSpaces(Option<GroupId>),
-}
-
-/// Use this function to create an open delimiter, where you can extract the formatting of
-/// trivias and token, separately.
-///
-/// This function assumes that you will use the token to replicate [format_delimited], which means
-/// that it will add possible line breaks
-pub(crate) fn format_open_delimiter(open_token: &JsSyntaxToken) -> OpenDelimiter {
-    OpenDelimiter::new(open_token)
-}
-
-/// Use this function to create an close delimiter, where you can extract the formatting of
-/// trivias and token, separately.
-///
-/// This function assumes that you will use the token to replicate [format_delimited], which means
-/// that it will add possible line breaks
-pub(crate) fn format_close_delimiter(close_token: &JsSyntaxToken) -> CloseDelimiter {
-    CloseDelimiter::new(close_token)
-}
-
-pub(crate) struct OpenDelimiter<'t> {
-    open_token: &'t JsSyntaxToken,
-}
-
-impl<'t> OpenDelimiter<'t> {
-    pub(crate) fn new(open_token: &'t JsSyntaxToken) -> Self {
-        Self { open_token }
-    }
-
-    /// It extracts the formatted leading trivia of the token, without writing it in the buffer
-    pub(crate) fn format_leading_trivia(&self) -> impl Format<JsFormatContext> + 't {
-        format_leading_trivia(self.open_token)
-    }
-
-    /// It extracts the formatted trailing trivia of the token, without writing it in the buffer
-    pub(crate) fn format_trailing_trivia(&self) -> impl Format<JsFormatContext> + 't {
-        format_with(|f| {
-            let mut recording = f.start_recording();
-            write!(recording, [format_trailing_trivia(self.open_token)])?;
-            let recorded = recording.stop();
-
-            if !recorded.is_empty() {
-                soft_line_break().fmt(f)?;
-            }
-
-            Ok(())
-        })
-    }
-
-    /// It extracts the formatted token, without writing it in the buffer
-    pub(crate) fn format_token(&self) -> impl Format<JsFormatContext> + 't {
-        format_with(|f| {
-            f.state_mut().track_token(self.open_token);
-            write!(f, [format_trimmed_token(self.open_token)])
-        })
-    }
-}
-
-pub(crate) struct CloseDelimiter<'t> {
-    close_token: &'t JsSyntaxToken,
-}
-
-impl<'t> CloseDelimiter<'t> {
-    pub(crate) fn new(close_token: &'t JsSyntaxToken) -> Self {
-        Self { close_token }
-    }
-
-    /// It extracts the formatted leading trivia of the token, without writing it in the buffer
-    pub(crate) fn format_trailing_trivia(&self) -> impl Format<JsFormatContext> + 't {
-        format_trailing_trivia(self.close_token)
-    }
-
-    /// It extracts the formatted trailing trivia of the token, without writing it in the buffer
-    pub(crate) fn format_leading_trivia(&self) -> impl Format<JsFormatContext> + 't {
-        format_with(|f| {
-            let mut buffer = PreambleBuffer::new(f, soft_line_break());
-
-            write!(buffer, [format_leading_trivia(self.close_token)])
-        })
-    }
-
-    /// It extracts the formatted token, without writing it in the buffer
-    pub(crate) fn format_token(&self) -> impl Format<JsFormatContext> + 't {
-        format_with(|f| {
-            f.state_mut().track_token(self.close_token);
-            write!(f, [format_trimmed_token(self.close_token)])
-        })
-    }
 }
