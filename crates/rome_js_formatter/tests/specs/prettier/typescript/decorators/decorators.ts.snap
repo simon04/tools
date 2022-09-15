@@ -109,60 +109,13 @@ class Class6 {
  })
  class AngularComponent {
    @Input() myInput: string;
-@@ -15,7 +17,10 @@
- class Class {
-   method(
-     @Decorator
--    { prop1, prop2 }: Type,
-+    {
-+      prop1,
-+      prop2,
-+    }: Type,
-   ) {
-     doSomething();
-   }
-@@ -25,7 +30,10 @@
-   method(
-     @Decorator1
-     @Decorator2
--    { prop1, prop2 }: Type,
-+    {
-+      prop1,
-+      prop2,
-+    }: Type,
-   ) {
-     doSomething();
-   }
-@@ -34,7 +42,10 @@
- class Class3 {
-   method(
-     @Decorator
--    { prop1_1, prop1_2 }: Type,
-+    {
-+      prop1_1,
-+      prop1_2,
-+    }: Type,
-     { prop2_1, prop2_2 }: Type,
-   ) {
-     doSomething();
-@@ -45,17 +56,42 @@
-   method(
-     param1,
-     @Decorator
--    { prop1, prop2 }: Type,
-+    {
-+      prop1,
-+      prop2,
-+    }: Type,
-   ) {}
+@@ -50,12 +52,24 @@
  }
  
  class Class5 {
 -  method(@Decorator { prop1 }: Type) {}
 +  method(
-+    @Decorator {
-+      prop1,
-+    }: Type,
++    @Decorator { prop1 }: Type,
 +  ) {}
  }
  
@@ -172,26 +125,18 @@ class Class6 {
 -  method(@Decorator([]) { prop1 }: Type) {}
 -  method(@Decorator([]) { prop1 }: Type) {}
 +  method(
-+    @Decorator({}) {
-+      prop1,
-+    }: Type,
++    @Decorator({}) { prop1 }: Type,
 +  ) {}
 +  method(
 +    @Decorator(
-+      {}) {
-+      prop1,
-+    }: Type,
++      {}) { prop1 }: Type,
 +  ) {}
 +  method(
-+    @Decorator([]) {
-+      prop1,
-+    }: Type,
++    @Decorator([]) { prop1 }: Type,
 +  ) {}
 +  method(
 +    @Decorator(
-+      []) {
-+      prop1,
-+    }: Type,
++      []) { prop1 }: Type,
 +  ) {}
  }
 ```
@@ -218,10 +163,7 @@ class AngularComponent {
 class Class {
   method(
     @Decorator
-    {
-      prop1,
-      prop2,
-    }: Type,
+    { prop1, prop2 }: Type,
   ) {
     doSomething();
   }
@@ -231,10 +173,7 @@ class Class2 {
   method(
     @Decorator1
     @Decorator2
-    {
-      prop1,
-      prop2,
-    }: Type,
+    { prop1, prop2 }: Type,
   ) {
     doSomething();
   }
@@ -243,10 +182,7 @@ class Class2 {
 class Class3 {
   method(
     @Decorator
-    {
-      prop1_1,
-      prop1_2,
-    }: Type,
+    { prop1_1, prop1_2 }: Type,
     { prop2_1, prop2_2 }: Type,
   ) {
     doSomething();
@@ -257,43 +193,30 @@ class Class4 {
   method(
     param1,
     @Decorator
-    {
-      prop1,
-      prop2,
-    }: Type,
+    { prop1, prop2 }: Type,
   ) {}
 }
 
 class Class5 {
   method(
-    @Decorator {
-      prop1,
-    }: Type,
+    @Decorator { prop1 }: Type,
   ) {}
 }
 
 class Class6 {
   method(
-    @Decorator({}) {
-      prop1,
-    }: Type,
+    @Decorator({}) { prop1 }: Type,
   ) {}
   method(
     @Decorator(
-      {}) {
-      prop1,
-    }: Type,
+      {}) { prop1 }: Type,
   ) {}
   method(
-    @Decorator([]) {
-      prop1,
-    }: Type,
+    @Decorator([]) { prop1 }: Type,
   ) {}
   method(
     @Decorator(
-      []) {
-      prop1,
-    }: Type,
+      []) { prop1 }: Type,
   ) {}
 }
 ```

@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use rome_formatter::{format_args, write, CstFormatContext};
 
-use crate::builders::format_delimited;
 use crate::utils::FormatStatementBody;
 use rome_js_syntax::JsIfStatement;
 use rome_js_syntax::JsIfStatementFields;
@@ -31,8 +30,9 @@ impl FormatNodeRule<JsIfStatement> for FormatJsIfStatement {
             [group(&format_args![
                 if_token.format(),
                 space(),
-                format_delimited(&l_paren_token, &test.format(), &r_paren_token)
-                    .soft_block_indent(),
+                l_paren_token.format(),
+                group(&soft_block_indent(&test.format())),
+                r_paren_token.format(),
                 FormatStatementBody::new(&consequent),
             ]),]
         )?;

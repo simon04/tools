@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use rome_formatter::write;
 
-use crate::builders::format_delimited;
 use rome_js_syntax::{TsEnumDeclaration, TsEnumDeclarationFields};
 
 #[derive(Debug, Clone, Default)]
@@ -29,8 +28,9 @@ impl FormatNodeRule<TsEnumDeclaration> for FormatTsEnumDeclaration {
                 space(),
                 id.format(),
                 space(),
-                format_delimited(&l_curly_token?, &members.format(), &r_curly_token?,)
-                    .soft_block_spaces()
+                l_curly_token.format(),
+                group(&soft_line_indent_or_spaced(&members.format())),
+                r_curly_token.format()
             ]
         )
     }

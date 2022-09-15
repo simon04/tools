@@ -1,6 +1,5 @@
 use crate::prelude::*;
 
-use crate::builders::format_delimited;
 use rome_formatter::write;
 use rome_js_syntax::{JsSwitchStatement, JsSwitchStatementFields};
 use rome_rowan::AstNodeList;
@@ -35,10 +34,13 @@ impl FormatNodeRule<JsSwitchStatement> for FormatJsSwitchStatement {
             [
                 switch_token.format(),
                 space(),
-                format_delimited(&l_paren_token?, &discriminant.format(), &r_paren_token?,)
-                    .soft_block_indent(),
+                l_paren_token.format(),
+                group(&soft_block_indent(&discriminant.format())),
+                r_paren_token.format(),
                 space(),
-                format_delimited(&l_curly_token?, &format_cases, &r_curly_token?).block_indent()
+                l_curly_token.format(),
+                block_indent(&format_cases),
+                r_curly_token.format()
             ]
         ]
     }

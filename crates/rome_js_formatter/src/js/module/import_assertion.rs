@@ -1,6 +1,5 @@
 use crate::prelude::*;
 
-use crate::builders::format_delimited;
 use rome_formatter::write;
 use rome_js_syntax::JsImportAssertion;
 use rome_js_syntax::JsImportAssertionFields;
@@ -17,29 +16,26 @@ impl FormatNodeRule<JsImportAssertion> for FormatJsImportAssertion {
             r_curly_token,
         } = node.as_fields();
 
-        write![f, [assert_token.format(), space()]]?;
+        write![f, [assert_token.format(), space(), l_curly_token.format()]]?;
 
         if assertions.is_empty() {
             let has_dangling = f.comments().has_dangling_comments(node.syntax());
             write!(
                 f,
                 [
-                    l_curly_token.format(),
                     has_dangling.then_some(space()),
                     format_dangling_comments(node.syntax()).with_soft_block_indent(),
                     has_dangling.then_some(space()),
-                    r_curly_token.format(),
                 ]
-            )
+            )?;
         } else {
             write!(
                 f,
-                [
-                    format_delimited(&l_curly_token?, &assertions.format(), &r_curly_token?)
-                        .soft_block_spaces()
-                ]
-            )
+                [group(&soft_line_indent_or_spaced(&assertions.format()))]
+            )?;
         }
+
+        write!(f, [r_curly_token.format()])
     }
 
     fn fmt_dangling_comments(

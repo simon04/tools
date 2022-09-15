@@ -1,6 +1,5 @@
 use crate::prelude::*;
 
-use crate::builders::format_delimited;
 use crate::parentheses::NeedsParentheses;
 use rome_formatter::write;
 use rome_js_syntax::{
@@ -35,8 +34,9 @@ impl FormatNodeRule<JsArrayExpression> for FormatJsArrayExpression {
             write!(
                 f,
                 [
-                    format_delimited(&l_brack_token?, &elements.format(), &r_brack_token)
-                        .block_indent()
+                    l_brack_token.format(),
+                    block_indent(&elements.format()),
+                    r_brack_token.format()
                 ]
             )
         } else {
@@ -46,8 +46,11 @@ impl FormatNodeRule<JsArrayExpression> for FormatJsArrayExpression {
 
             write!(
                 f,
-                [format_delimited(&l_brack_token?, &elements, &r_brack_token)
-                    .soft_block_indent_with_group_id(Some(group_id))]
+                [
+                    l_brack_token.format(),
+                    group(&soft_block_indent(&elements)).with_group_id(Some(group_id)),
+                    r_brack_token.format()
+                ]
             )
         }
     }

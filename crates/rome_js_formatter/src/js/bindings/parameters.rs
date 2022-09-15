@@ -6,7 +6,6 @@ use crate::js::lists::parameter_list::{
     AnyParameter, FormatJsAnyParameterList, JsAnyParameterList,
 };
 
-use crate::builders::format_delimited;
 use rome_js_syntax::{
     JsAnyConstructorParameter, JsAnyFormalParameter, JsCallExpression, JsConstructorParameters,
     JsParameters, JsSyntaxKind, JsSyntaxToken, TsType,
@@ -80,14 +79,19 @@ impl Format<JsFormatContext> for FormatJsAnyParameters {
                     ]
                 )
             }
-            ParameterLayout::Default => format_delimited(
-                &l_paren_token,
-                &FormatJsAnyParameterList::with_layout(&list, ParameterLayout::Default),
-                &r_paren_token,
-            )
-            .soft_block_indent()
-            .ungrouped()
-            .fmt(f),
+            ParameterLayout::Default => {
+                write!(
+                    f,
+                    [
+                        l_paren_token.format(),
+                        soft_block_indent(&FormatJsAnyParameterList::with_layout(
+                            &list,
+                            ParameterLayout::Default
+                        )),
+                        r_paren_token.format()
+                    ]
+                )
+            }
         }
     }
 }

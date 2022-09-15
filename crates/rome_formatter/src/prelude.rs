@@ -8,6 +8,8 @@ pub use crate::token::{
     format_replaced, format_trailing_comments, format_trimmed_token,
 };
 
+pub use crate::verbatim::{format_suppressed_node, format_unknown_node, format_verbatim_node};
+
 pub use crate::{
     best_fitting, dbg_write, format, format_args, write, Buffer as _, BufferExtensions, Format,
     Format as _, FormatError, FormatResult, FormatRule, FormatWithRule as _, SimpleFormatContext,

@@ -1127,6 +1127,43 @@ impl<Context> std::fmt::Debug for BlockIndent<'_, Context> {
     }
 }
 
+pub fn soft_line_indent_or_spaced<Context>(
+    content: &impl Format<Context>,
+) -> SoftLineIndentOrSpaced<Context> {
+    SoftLineIndentOrSpaced {
+        content: Argument::new(content),
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct SoftLineIndentOrSpaced<'a, Context> {
+    content: Argument<'a, Context>,
+}
+
+impl<Context> Format<Context> for SoftLineIndentOrSpaced<'_, Context> {
+    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
+        let mut is_empty = true;
+
+        let format_content = format_once(|f| {
+            let mut recording = f.start_recording();
+
+            recording.write_fmt(Arguments::from(&self.content))?;
+
+            is_empty = recording.stop().is_empty();
+
+            Ok(())
+        });
+
+        soft_line_indent_or_space(&format_content).fmt(f)?;
+
+        if !is_empty {
+            soft_line_break_or_space().fmt(f)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Creates a logical `Group` around the content that should either consistently be printed on a single line
 /// or broken across multiple lines.
 ///

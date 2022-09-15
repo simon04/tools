@@ -2,7 +2,6 @@ use crate::prelude::*;
 use rome_formatter::write;
 use rome_js_syntax::{JsSyntaxKind, JsSyntaxNode, TsTypeAssertionAssignmentFields};
 
-use crate::builders::format_delimited;
 use crate::parentheses::NeedsParentheses;
 use rome_js_syntax::TsTypeAssertionAssignment;
 
@@ -25,8 +24,9 @@ impl FormatNodeRule<TsTypeAssertionAssignment> for FormatTsTypeAssertionAssignme
         write![
             f,
             [
-                format_delimited(&l_angle_token?, &ty.format(), &r_angle_token?)
-                    .soft_block_indent(),
+                l_angle_token.format(),
+                group(&soft_block_indent(&ty.format())),
+                r_angle_token.format(),
                 assignment.format()
             ]
         ]

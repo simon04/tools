@@ -1,4 +1,3 @@
-use crate::builders::format_delimited;
 use crate::utils::should_hug_type;
 use crate::{prelude::*, utils::is_object_like_type};
 use rome_formatter::write;
@@ -77,25 +76,17 @@ impl FormatNodeRule<TsTypeArguments> for FormatTsTypeArguments {
         let should_inline = !is_arrow_function_variables
             && (ts_type_argument_list.len() == 0 || first_argument_can_be_hugged_or_is_null_type);
 
+        write!(f, [l_angle_token.format(),])?;
+
         if should_inline {
-            write!(
-                f,
-                [
-                    l_angle_token.format(),
-                    ts_type_argument_list.format(),
-                    r_angle_token.format(),
-                ]
-            )
+            write!(f, [ts_type_argument_list.format()])?;
         } else {
             write!(
                 f,
-                [format_delimited(
-                    &l_angle_token?,
-                    &ts_type_argument_list.format(),
-                    &r_angle_token?,
-                )
-                .soft_block_indent()]
-            )
+                [group(&soft_block_indent(&ts_type_argument_list.format()))]
+            )?;
         }
+
+        write!(f, [r_angle_token.format()])
     }
 }
