@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use crate::utils::JsAnyConditional;
-use rome_formatter::{write, CommentPlacement, CommentPosition, Comments, DecoratedComment};
+use rome_formatter::{write, CommentPlacement, CommentTextPosition, Comments, DecoratedComment};
 use rome_formatter::{CommentKind, CommentStyle, SourceComment};
 use rome_js_syntax::suppression::{parse_suppression_comment, SuppressionCategory};
 use rome_js_syntax::{
@@ -150,7 +150,7 @@ impl CommentStyle for JsCommentStyle {
         comment: DecoratedComment<Self::Language>,
     ) -> CommentPlacement<Self::Language> {
         match comment.position() {
-            CommentPosition::EndOfLine => handle_typecast_comment(comment)
+            CommentTextPosition::EndOfLine => handle_typecast_comment(comment)
                 .or_else(handle_function_declaration_comment)
                 .or_else(handle_conditional_comment)
                 .or_else(handle_if_statement_comment)
@@ -169,7 +169,7 @@ impl CommentStyle for JsCommentStyle {
                 .or_else(handle_mapped_type_comment)
                 .or_else(handle_switch_default_case_comment)
                 .or_else(handle_import_export_specifier_comment),
-            CommentPosition::OwnLine => handle_member_expression_comment(comment)
+            CommentTextPosition::OwnLine => handle_member_expression_comment(comment)
                 .or_else(handle_function_declaration_comment)
                 .or_else(handle_if_statement_comment)
                 .or_else(handle_while_comment)
@@ -186,7 +186,7 @@ impl CommentStyle for JsCommentStyle {
                 .or_else(handle_continue_break_comment)
                 .or_else(handle_union_type_comment)
                 .or_else(handle_import_export_specifier_comment),
-            CommentPosition::SameLine => handle_if_statement_comment(comment)
+            CommentTextPosition::SameLine => handle_if_statement_comment(comment)
                 .or_else(handle_while_comment)
                 .or_else(handle_for_comment)
                 .or_else(handle_root_comments)

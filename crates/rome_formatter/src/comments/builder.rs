@@ -1,5 +1,5 @@
 use crate::comments::map::CommentsMap;
-use crate::comments::CommentPosition;
+use crate::comments::CommentTextPosition;
 use crate::source_map::{DeletedRangeEntry, DeletedRanges};
 use crate::{
     CommentPlacement, CommentStyle, DecoratedComment, SourceComment, TextRange, TextSize,
@@ -126,7 +126,7 @@ where
 
         // Trailing comments are all `SameLine` comments EXCEPT if any is followed by a line break,
         // a leading comment (that always have line breaks), or there's a line break before the token.
-        let mut position = CommentPosition::SameLine;
+        let mut position = CommentTextPosition::SameLine;
 
         // Process the trailing trivia of the last token
         if let Some(last_token) = self.last_token.take() {
@@ -134,7 +134,7 @@ where
                 if piece.is_newline() {
                     lines_before += 1;
                     // All comments following from here are own line comments
-                    position = CommentPosition::OwnLine;
+                    position = CommentTextPosition::OwnLine;
 
                     if trailing_end.is_none() {
                         trailing_end = Some(self.pending_comments.len());
@@ -169,7 +169,7 @@ where
                     );
 
                     lines_before = 0;
-                    position = CommentPosition::SameLine;
+                    position = CommentTextPosition::SameLine;
                     comments_start = 0;
                     trailing_end = None;
                 }
@@ -181,7 +181,7 @@ where
             if leading.is_newline() {
                 lines_before += 1;
                 // All comments following from here are own line comments
-                position = CommentPosition::OwnLine;
+                position = CommentTextPosition::OwnLine;
 
                 if trailing_end.is_none() {
                     trailing_end = Some(self.pending_comments.len());
@@ -223,7 +223,7 @@ where
         while let Some((index, comment)) = comments.next() {
             // Update the position of all trailing comments to be end of line as we've seen a line break since.
             if index < trailing_end && position.is_own_line() {
-                comment.position = CommentPosition::EndOfLine;
+                comment.position = CommentTextPosition::EndOfLine;
             }
 
             comment.lines_after = comments
@@ -280,7 +280,7 @@ where
         &mut self,
         parens_source_range: TextRange,
         last_token: &SyntaxToken<Style::Language>,
-        position: CommentPosition,
+        position: CommentTextPosition,
         lines_before: u32,
         start: usize,
         trailing_end: Option<usize>,
@@ -310,7 +310,7 @@ where
         while let Some((index, comment)) = comments.next() {
             // Update the position of all trailing comments to be end of line as we've seen a line break since.
             if index < trailing_end && position.is_own_line() {
-                comment.position = CommentPosition::EndOfLine;
+                comment.position = CommentTextPosition::EndOfLine;
             }
 
             comment.preceding = Some(preceding.clone());
@@ -343,7 +343,7 @@ impl<L: Language> CommentsBuilder<L> {
             }
             CommentPlacement::Default(mut comment) => {
                 match comment.position {
-                    CommentPosition::EndOfLine => {
+                    CommentTextPosition::EndOfLine => {
                         match (comment.take_preceding_node(), comment.take_following_node()) {
                             (Some(preceding), Some(_)) => {
                                 // Attach comments with both preceding and following node to the preceding
@@ -368,7 +368,7 @@ impl<L: Language> CommentsBuilder<L> {
                             }
                         }
                     }
-                    CommentPosition::OwnLine => {
+                    CommentTextPosition::OwnLine => {
                         match (comment.take_preceding_node(), comment.take_following_node()) {
                             // Following always wins for a leading comment
                             // ```javascript
@@ -391,7 +391,7 @@ impl<L: Language> CommentsBuilder<L> {
                             }
                         }
                     }
-                    CommentPosition::SameLine => {
+                    CommentTextPosition::SameLine => {
                         match (comment.take_preceding_node(), comment.take_following_node()) {
                             (Some(preceding), Some(following)) => {
                                 // Only make it a trailing comment if it directly follows the preceding node but not if it is separated
@@ -585,7 +585,7 @@ impl<'a> SourceParentheses<'a> {
 mod tests {
     use crate::comments::builder::CommentsBuilderVisitor;
     use crate::comments::map::CommentsMap;
-    use crate::comments::CommentPosition;
+    use crate::comments::CommentTextPosition;
     use crate::{
         CommentKind, CommentPlacement, CommentStyle, DecoratedComment, SourceComment, TextSize,
         TransformSourceMap, TransformSourceMapBuilder,
@@ -614,7 +614,7 @@ mod tests {
 
         let comment = decorated.last().unwrap();
 
-        assert_eq!(comment.position(), CommentPosition::OwnLine);
+        assert_eq!(comment.position(), CommentTextPosition::OwnLine);
         assert_eq!(comment.lines_before(), 1);
         assert_eq!(comment.lines_after(), 1);
         assert_eq!(
@@ -657,7 +657,7 @@ mod tests {
 
         let comment = decorated.last().unwrap();
 
-        assert_eq!(comment.position(), CommentPosition::SameLine);
+        assert_eq!(comment.position(), CommentTextPosition::SameLine);
         assert_eq!(comment.lines_after(), 0);
         assert_eq!(comment.lines_before(), 0);
         assert_eq!(
@@ -700,7 +700,7 @@ mod tests {
 
         let comment = decorated.last().unwrap();
 
-        assert_eq!(comment.position(), CommentPosition::EndOfLine);
+        assert_eq!(comment.position(), CommentTextPosition::EndOfLine);
         assert_eq!(comment.lines_before(), 0);
         assert_eq!(comment.lines_after(), 1);
         assert_eq!(
@@ -737,7 +737,7 @@ mod tests {
         assert_eq!(decorated_comments.len(), 1);
 
         let decorated = &decorated_comments[0];
-        assert_eq!(decorated.position(), CommentPosition::SameLine);
+        assert_eq!(decorated.position(), CommentTextPosition::SameLine);
         assert_eq!(decorated.lines_before(), 0);
         assert_eq!(decorated.lines_after(), 0);
         assert_eq!(decorated.preceding_node(), None);
@@ -762,7 +762,7 @@ mod tests {
         assert_eq!(decorated_comments.len(), 1);
 
         let decorated = &decorated_comments[0];
-        assert_eq!(decorated.position(), CommentPosition::SameLine);
+        assert_eq!(decorated.position(), CommentTextPosition::SameLine);
         assert_eq!(decorated.lines_before(), 0);
         assert_eq!(decorated.lines_after(), 0);
         assert_eq!(decorated.preceding_node(), None);
@@ -862,7 +862,7 @@ b;"#;
         assert_eq!(decorated_comments.len(), 2);
 
         let argument_trailing = &decorated_comments[0];
-        assert_eq!(argument_trailing.position(), CommentPosition::OwnLine);
+        assert_eq!(argument_trailing.position(), CommentTextPosition::OwnLine);
         assert_eq!(argument_trailing.lines_before(), 1);
         assert_eq!(argument_trailing.lines_after(), 1);
         assert_eq!(
@@ -878,7 +878,7 @@ b;"#;
         );
 
         let identifier_leading = &decorated_comments[1];
-        assert_eq!(identifier_leading.position(), CommentPosition::OwnLine);
+        assert_eq!(identifier_leading.position(), CommentTextPosition::OwnLine);
         assert_eq!(identifier_leading.lines_before(), 1);
         assert_eq!(identifier_leading.lines_after(), 1);
         assert_eq!(
@@ -914,7 +914,7 @@ b;"#;
         assert_eq!(decorated.len(), 2);
 
         let first = &decorated[0];
-        assert_eq!(first.position(), CommentPosition::EndOfLine);
+        assert_eq!(first.position(), CommentTextPosition::EndOfLine);
         assert_eq!(first.lines_before(), 0);
         assert_eq!(first.lines_after(), 2);
         assert_eq!(first.preceding_node(), None);
@@ -925,7 +925,7 @@ b;"#;
         assert_eq!(first.enclosing_node().kind(), JsSyntaxKind::JS_MODULE);
 
         let second = &decorated[1];
-        assert_eq!(second.position(), CommentPosition::OwnLine);
+        assert_eq!(second.position(), CommentTextPosition::OwnLine);
         assert_eq!(second.lines_before(), 2);
         assert_eq!(second.lines_after(), 0);
         assert_eq!(second.preceding_node(), None);

@@ -120,7 +120,7 @@ pub struct DecoratedComment<L: Language> {
     preceding: Option<SyntaxNode<L>>,
     following: Option<SyntaxNode<L>>,
     following_token: SyntaxToken<L>,
-    position: CommentPosition,
+    position: CommentTextPosition,
     lines_before: u32,
     lines_after: u32,
     comment: SyntaxTriviaPieceComments<L>,
@@ -171,7 +171,7 @@ impl<L: Language> DecoratedComment<L> {
         self.kind
     }
 
-    pub fn position(&self) -> CommentPosition {
+    pub fn position(&self) -> CommentTextPosition {
         self.position
     }
 
@@ -191,8 +191,9 @@ impl<L: Language> From<DecoratedComment<L>> for SourceComment<L> {
     }
 }
 
+/// The position of a comment in the source document.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum CommentPosition {
+pub enum CommentTextPosition {
     /// A comment that is separated by at least one line break from the following token
     ///
     /// ```javascript
@@ -217,17 +218,17 @@ pub enum CommentPosition {
     SameLine,
 }
 
-impl CommentPosition {
+impl CommentTextPosition {
     pub const fn is_same_line(&self) -> bool {
-        matches!(self, CommentPosition::SameLine)
+        matches!(self, CommentTextPosition::SameLine)
     }
 
     pub const fn is_own_line(&self) -> bool {
-        matches!(self, CommentPosition::OwnLine)
+        matches!(self, CommentTextPosition::OwnLine)
     }
 
     pub const fn is_end_of_line(&self) -> bool {
-        matches!(self, CommentPosition::EndOfLine)
+        matches!(self, CommentTextPosition::EndOfLine)
     }
 }
 
