@@ -426,78 +426,63 @@ impl<'a> Printer<'a> {
         queue: &mut PrintQueue<'a>,
         stack: &mut PrintCallStack,
     ) -> PrintResult<()> {
+        // Main difference. Prettier schedules separator as "expand" together with the item. If the item
+        // then measures if the content fits, it returns true because the separator expands. We don't do that
+        // and instead continue to use the "flat" separator that doesn't count as expanding.
+
+        // But otherwise, setting measured state to true isn't wrong.
+
+        // The main issue is that we must print the item in expanded mode if printing the item + next separator in flat exceed the line width.
+        // Meaning, it isn't sufficient to only test the item.
+
+        // That means, it's always necessary to test item + separator.
+
+        // we want to process separator / item / separator pairs
+
         let args = stack.top();
-
-        if matches!(queue.top(), Some(FormatElement::Tag(Tag::EndFill))) {
-            // Empty fill
-            return Ok(());
-        }
-
-        // Print the first item
-        let mut current_fits =
-            self.fits_fill_entry(SingleEntryPredicate::default(), queue, stack)?;
-
-        self.state.measured_group_fits = current_fits;
-
-        self.print_entry(
-            queue,
-            stack,
-            args.with_print_mode(if current_fits {
-                PrintMode::Flat
-            } else {
-                PrintMode::Expanded
-            }),
-        )?;
 
         // Process remaining items, it's a sequence of separator, item, separator, item...
         while matches!(queue.top(), Some(FormatElement::Tag(Tag::StartEntry))) {
-            // A line break in expanded mode is always necessary if the current item didn't fit.
-            // otherwise see if both contents fit on the line.
-            let all_fits = if current_fits {
-                self.fits_fill_entry(SeparatorItemPairPredicate::default(), queue, stack)?
+            debug_assert_eq!(queue.top(), Some(&FormatElement::Tag(Tag::StartEntry)),);
+
+            // Test if the item and the next separator fit.
+            // If they do, print the item in flat mode. If they don't, print the item and separator in expanded mode.
+            let item_separator_fits =
+                self.fits_fill_entry(SeparatorItemPairPredicate::default(), queue, stack)?;
+
+            self.state.measured_group_fits = item_separator_fits;
+
+            debug_assert_eq!(queue.top(), Some(&FormatElement::Tag(Tag::StartEntry)),);
+
+            if item_separator_fits {
+                self.print_entry(queue, stack, args.with_print_mode(PrintMode::Flat))?;
             } else {
-                false
-            };
+                self.print_entry(queue, stack, args.with_print_mode(PrintMode::Expanded))?;
+            }
 
-            self.state.measured_group_fits = all_fits;
-
-            let separator_mode = if all_fits {
-                PrintMode::Flat
-            } else {
-                PrintMode::Expanded
-            };
-
-            // Separator
-            self.print_entry(queue, stack, args.with_print_mode(separator_mode))?;
-
-            // If this was a trailing separator, exit
+            // If this was the last item, exit
             if !matches!(queue.top(), Some(FormatElement::Tag(Tag::StartEntry))) {
                 break;
             }
 
-            if all_fits {
-                // Item
+            debug_assert_eq!(queue.top(), Some(&FormatElement::Tag(Tag::StartEntry)),);
+
+            // Now test if the separator and the next item fit.
+            // If so, print the separator in flat mode, otherwise print in expanded.
+            let separator_item_fits =
+                self.fits_fill_entry(SeparatorItemPairPredicate::default(), queue, stack)?;
+
+            self.state.measured_group_fits = separator_item_fits;
+
+            debug_assert_eq!(queue.top(), Some(&FormatElement::Tag(Tag::StartEntry)),);
+            if separator_item_fits {
                 self.print_entry(queue, stack, args.with_print_mode(PrintMode::Flat))?;
             } else {
-                // Test if item fits now
-                let next_fits =
-                    self.fits_fill_entry(SingleEntryPredicate::default(), queue, stack)?;
-
-                self.state.measured_group_fits = next_fits;
-
-                self.print_entry(
-                    queue,
-                    stack,
-                    args.with_print_mode(if next_fits {
-                        PrintMode::Flat
-                    } else {
-                        PrintMode::Expanded
-                    }),
-                )?;
-
-                current_fits = next_fits;
+                self.print_entry(queue, stack, args.with_print_mode(PrintMode::Expanded))?;
             }
         }
+
+        self.state.measured_group_fits = false;
 
         if queue.top() == Some(&FormatElement::Tag(EndFill)) {
             Ok(())
@@ -937,8 +922,7 @@ fn fits_element_on_line<'a, 'rest>(
                 return invalid_start_tag(TagKind::Entry, slice.first());
             }
 
-            stack.push(TagKind::Entry, args.with_print_mode(args.mode()));
-            queue.extend_back(&slice[1..]);
+            queue.extend_back(&slice);
         }
 
         FormatElement::Interned(content) => queue.extend_back(content),

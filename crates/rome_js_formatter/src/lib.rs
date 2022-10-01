@@ -861,15 +861,12 @@ function() {
     // use this test check if your snippet prints as you wish, without using a snapshot
     fn quick_test() {
         let src = r#"
-const b4 = (
-	<div>
-		Text <a data-very-long-prop-breakline-rome-playground data-other>
-			some link
-		</a>{" "}
-		| some other text,{" "}
-	</div>
-);
-
+ <div>
+    ENddddDSIIIN <div>
+      texttexttexttexttexttexttexttexttexttexttexttextextffg
+    </div>{" "}
+    HRS
+  </div>;
 "#;
         let syntax = SourceType::jsx();
         let tree = parse(src, FileId::zero(), syntax);
@@ -879,13 +876,13 @@ const b4 = (
             .unwrap()
             .print()
             .unwrap();
-        check_reformat(CheckReformatParams {
-            root: &tree.syntax(),
-            text: result.as_code(),
-            source_type: syntax,
-            file_name: "quick_test",
-            options,
-        });
+        // check_reformat(CheckReformatParams {
+        //     root: &tree.syntax(),
+        //     text: result.as_code(),
+        //     source_type: syntax,
+        //     file_name: "quick_test",
+        //     options,
+        // });
         assert_eq!(
             result.as_code(),
             r#"[
