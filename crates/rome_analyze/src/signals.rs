@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     categories::ActionCategory,
     context::RuleContext,
@@ -104,7 +106,7 @@ pub(crate) struct RuleSignal<'phase, R: Rule> {
     query_result: <<R as Rule>::Query as Queryable>::Output,
     state: R::State,
     services: &'phase ServiceBag,
-    options: AnalyzerOptions,
+    options: Arc<R::Options>,
 }
 
 impl<'phase, R> RuleSignal<'phase, R>
@@ -117,7 +119,7 @@ where
         query_result: <<R as Rule>::Query as Queryable>::Output,
         state: R::State,
         services: &'phase ServiceBag,
-        options: AnalyzerOptions,
+        options: Arc<R::Options>,
     ) -> Self {
         Self {
             file_id,
@@ -132,18 +134,18 @@ where
 
 impl<'bag, R> AnalyzerSignal<RuleLanguage<R>> for RuleSignal<'bag, R>
 where
-    R: Rule,
+    R: Rule + 'static,
 {
     fn diagnostic(&self) -> Option<AnalyzerDiagnostic> {
         let ctx =
-            RuleContext::new(&self.query_result, self.root, self.services, &self.options).ok()?;
+            RuleContext::new(&self.query_result, self.root, self.services, self.options.clone()).ok()?;
 
         R::diagnostic(&ctx, &self.state).map(|diag| diag.into_analyzer_diagnostic(self.file_id))
     }
 
     fn action(&self) -> Option<AnalyzerAction<RuleLanguage<R>>> {
         let ctx =
-            RuleContext::new(&self.query_result, self.root, self.services, &self.options).ok()?;
+            RuleContext::new(&self.query_result, self.root, self.services, self.options.clone()).ok()?;
 
         R::action(&ctx, &self.state).map(|action| AnalyzerAction {
             group_name: <R::Group as RuleGroup>::NAME,

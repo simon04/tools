@@ -231,6 +231,16 @@ impl_group_language!(
     T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29
 );
 
+pub trait DeserializableRuleOptions: Default + DeserializeOwned + Sized {
+    fn try_from(value: serde_json::Value) -> Result<Self, serde_json::Error> {
+        serde_json::from_value(value)
+    }
+}
+
+impl DeserializableRuleOptions for () {
+    
+}
+
 /// Trait implemented by all analysis rules: declares interest to a certain AstNode type,
 /// and a callback function to be executed on all nodes matching the query to possibly
 /// raise an analysis event
@@ -246,7 +256,7 @@ pub trait Rule: RuleMeta {
     /// analyzer
     type Signals: IntoIterator<Item = Self::State>;
     /// The options that belong to a rule
-    type Options: DeserializeOwned;
+    type Options: DeserializableRuleOptions;
 
     fn phase() -> Phases {
         <<<Self as Rule>::Query as Queryable>::Services as Phase>::phase()

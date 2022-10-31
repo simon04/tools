@@ -1,6 +1,6 @@
 use crate::react::hooks::*;
 use crate::semantic_services::Semantic;
-use rome_analyze::{context::RuleContext, declare_rule, Rule, RuleDiagnostic};
+use rome_analyze::{context::RuleContext, declare_rule, Rule, RuleDiagnostic, DeserializableRuleOptions, options::OptionsDeserializationDiagnostic};
 use rome_console::markup;
 use rome_js_semantic::Capture;
 use rome_js_syntax::{
@@ -62,11 +62,7 @@ declare_rule! {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref OPTIONS: ReactExtensiveDependenciesOptions = ReactExtensiveDependenciesOptions::new();
-}
-
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ReactExtensiveDependenciesOptions {
     hooks_config: HashMap<String, ReactHookConfiguration>,
     stable_config: HashSet<StableReactHookConfiguration>,
@@ -100,6 +96,31 @@ impl ReactExtensiveDependenciesOptions {
     }
 }
 
+impl DeserializableRuleOptions for ReactExtensiveDependenciesOptions {
+    fn try_from(value: serde_json::Value) -> Result<Self, serde_json::Error> {
+        #[derive(Debug, Deserialize)]
+        struct Options {
+            #[serde(default)]
+            hooks_config: Vec<(String, usize, usize)>,
+            #[serde(default)]
+            stable_config: HashSet<StableReactHookConfiguration>,
+        }
+
+        let options: Options = serde_json::from_value(value)?;
+        
+        let mut default = ReactExtensiveDependenciesOptions::new();
+        for (k, closure_index, dependencies_index) in options.hooks_config.into_iter() {
+            default.hooks_config.insert(k, ReactHookConfiguration {
+                closure_index,
+                dependencies_index,
+            });
+        }
+        default.stable_config.extend(options.stable_config.into_iter());
+
+        Ok(default)
+    }
+}
+
 /// Flags the possible fixes that were found
 pub enum Fix {
     /// When a dependency needs to be added.
@@ -115,7 +136,7 @@ impl Rule for UseExhaustiveDependencies {
     type Options = ReactExtensiveDependenciesOptions;
 
     fn run(ctx: &RuleContext<Self>) -> Vec<Self::State> {
-        let options = ctx.options().unwrap_or(&OPTIONS);
+        let options = ctx.options();
 
         let mut signals = vec![];
 

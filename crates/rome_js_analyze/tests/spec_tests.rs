@@ -1,6 +1,6 @@
 use rome_analyze::{
     AnalysisFilter, AnalyzerAction, AnalyzerDiagnostic, AnalyzerOptions, ControlFlow, Never,
-    RuleFilter,
+    RuleFilter, RuleKey,
 };
 use rome_console::{
     fmt::{Formatter, Termcolor},
@@ -23,6 +23,7 @@ tests_macros::gen_tests! {"tests/specs/**/*.{cjs,js,jsx,tsx,ts}", crate::run_tes
 
 fn run_test(input: &'static str, _: &str, _: &str, _: &str) {
     register_leak_checker();
+    
 
     let input_file = Path::new(input);
     let file_name = input_file.file_name().and_then(OsStr::to_str).unwrap();
@@ -43,7 +44,14 @@ fn run_test(input: &'static str, _: &str, _: &str, _: &str) {
 
     let mut diagnostics = Vec::new();
     let mut code_fixes = Vec::new();
-    let options = AnalyzerOptions::default();
+    let mut options = AnalyzerOptions::default();
+
+    if let Ok(value) = std::env::var("ROME_TEST_RULE_OPTIONS")  {
+        let v: serde_json::Value = serde_json::from_str(value.as_str()).expect("ROME_TEST_RULE_OPTIONS must be a valid JSON");
+        let rule_key = RuleKey::new(group, rule);
+        options.configuration.rules.push_rule(rule_key, v);
+    }
+
     rome_js_analyze::analyze(FileId::zero(), &root, filter, &options, |event| {
         if let Some(mut diag) = event.diagnostic() {
             diag.set_severity(Severity::Warning);

@@ -9,7 +9,7 @@ use std::ops;
 mod categories;
 pub mod context;
 mod matcher;
-mod options;
+pub mod options;
 mod query;
 mod registry;
 mod rule;
@@ -30,7 +30,7 @@ pub use crate::registry::{
     RuleRegistry, RuleRegistryBuilder, RuleSuppressions,
 };
 pub use crate::rule::{
-    CategoryLanguage, GroupCategory, GroupLanguage, Rule, RuleAction, RuleDiagnostic, RuleGroup,
+    CategoryLanguage, GroupCategory, GroupLanguage, DeserializableRuleOptions, Rule, RuleAction, RuleDiagnostic, RuleGroup,
     RuleMeta, RuleMetadata,
 };
 pub use crate::services::{FromServices, MissingServicesDiagnostic, ServiceBag};
