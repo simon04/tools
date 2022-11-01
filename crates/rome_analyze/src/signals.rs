@@ -106,7 +106,6 @@ pub(crate) struct RuleSignal<'phase, R: Rule> {
     query_result: <<R as Rule>::Query as Queryable>::Output,
     state: R::State,
     services: &'phase ServiceBag,
-    options: Arc<R::Options>,
 }
 
 impl<'phase, R> RuleSignal<'phase, R>
@@ -119,7 +118,6 @@ where
         query_result: <<R as Rule>::Query as Queryable>::Output,
         state: R::State,
         services: &'phase ServiceBag,
-        options: Arc<R::Options>,
     ) -> Self {
         Self {
             file_id,
@@ -127,7 +125,6 @@ where
             query_result,
             state,
             services,
-            options,
         }
     }
 }
@@ -141,7 +138,6 @@ where
             &self.query_result,
             self.root,
             self.services,
-            self.options.clone(),
         )
         .ok()?;
 
@@ -153,7 +149,6 @@ where
             &self.query_result,
             self.root,
             self.services,
-            self.options.clone(),
         )
         .ok()?;
 
