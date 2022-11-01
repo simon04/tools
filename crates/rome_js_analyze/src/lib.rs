@@ -1,8 +1,9 @@
 use control_flow::make_visitor;
 use rome_analyze::{
-    AnalysisFilter, Analyzer, AnalyzerContext, AnalyzerOptions, AnalyzerSignal, ControlFlow,
-    InspectMatcher, LanguageRoot, MatchQueryParams, MetadataRegistry, Phases, RuleAction,
-    RuleRegistry, ServiceBag, SyntaxVisitor, options::OptionsDeserializationDiagnostic, DeserializableRuleOptions,
+    options::OptionsDeserializationDiagnostic, AnalysisFilter, Analyzer, AnalyzerContext,
+    AnalyzerOptions, AnalyzerSignal, ControlFlow, DeserializableRuleOptions, InspectMatcher,
+    LanguageRoot, MatchQueryParams, MetadataRegistry, Phases, RuleAction, RuleRegistry, ServiceBag,
+    SyntaxVisitor,
 };
 use rome_diagnostics::file::FileId;
 use rome_js_syntax::{
@@ -44,17 +45,17 @@ pub fn metadata() -> &'static MetadataRegistry {
 pub struct RulesConfigurator<'a> {
     options: &'a AnalyzerOptions,
     services: &'a mut ServiceBag,
-    errors: Vec<OptionsDeserializationDiagnostic>
+    errors: Vec<OptionsDeserializationDiagnostic>,
 }
 
-impl<'a, L: rome_rowan::Language + Default> rome_analyze::RegistryVisitor<L> 
+impl<'a, L: rome_rowan::Language + Default> rome_analyze::RegistryVisitor<L>
     for RulesConfigurator<'a>
 {
     fn record_rule<R>(&mut self)
     where
         R: rome_analyze::Rule + 'static,
         R::Query: rome_analyze::Queryable<Language = L>,
-        <R::Query as rome_analyze::Queryable>::Output: Clone 
+        <R::Query as rome_analyze::Queryable>::Output: Clone,
     {
         let rule_key = rome_analyze::RuleKey::rule::<R>();
         let options = if let Some(options) = self.options.configuration.rules.get_rule(&rule_key) {
@@ -69,13 +70,14 @@ impl<'a, L: rome_rowan::Language + Default> rome_analyze::RegistryVisitor<L>
                     );
                     self.errors.push(err);
                     <R::Options as Default>::default()
-                },
+                }
             }
         } else {
             <R::Options as Default>::default()
         };
 
-        self.services.insert_service_with_id(&rule_key, Arc::new(options));
+        self.services
+            .insert_service_with_id(&rule_key, Arc::new(options));
     }
 }
 
@@ -118,7 +120,7 @@ where
     let mut configurator = RulesConfigurator {
         options,
         services: &mut services,
-        errors: vec![]
+        errors: vec![],
     };
     visit_registry(&mut configurator);
 

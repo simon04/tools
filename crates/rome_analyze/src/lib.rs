@@ -30,8 +30,8 @@ pub use crate::registry::{
     RuleRegistry, RuleRegistryBuilder, RuleSuppressions,
 };
 pub use crate::rule::{
-    CategoryLanguage, GroupCategory, GroupLanguage, DeserializableRuleOptions, Rule, RuleAction, RuleDiagnostic, RuleGroup,
-    RuleMeta, RuleMetadata,
+    CategoryLanguage, DeserializableRuleOptions, GroupCategory, GroupLanguage, Rule, RuleAction,
+    RuleDiagnostic, RuleGroup, RuleMeta, RuleMetadata,
 };
 pub use crate::services::{FromServices, MissingServicesDiagnostic, ServiceBag};
 use crate::signals::DiagnosticSignal;

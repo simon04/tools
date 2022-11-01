@@ -1,7 +1,4 @@
-use crate::options::OptionsDeserializationDiagnostic;
-use crate::{
-    registry::RuleRoot, AnalyzerOptions, FromServices, Queryable, Rule, RuleKey, ServiceBag,
-};
+use crate::{registry::RuleRoot, FromServices, Queryable, Rule, RuleKey, ServiceBag};
 use rome_diagnostics::v2::{Error, Result};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -34,7 +31,7 @@ where
             query_result,
             root,
             services: FromServices::from_services(&rule_key, services)?,
-            options
+            options,
         })
     }
 

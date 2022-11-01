@@ -5,7 +5,7 @@ use crate::{
     context::RuleContext,
     registry::{RuleLanguage, RuleRoot},
     rule::Rule,
-    AnalyzerDiagnostic, AnalyzerOptions, Queryable, RuleGroup, ServiceBag,
+    AnalyzerDiagnostic, Queryable, RuleGroup, ServiceBag,
 };
 use rome_console::MarkupBuf;
 use rome_diagnostics::file::FileSpan;
@@ -137,15 +137,25 @@ where
     R: Rule + 'static,
 {
     fn diagnostic(&self) -> Option<AnalyzerDiagnostic> {
-        let ctx =
-            RuleContext::new(&self.query_result, self.root, self.services, self.options.clone()).ok()?;
+        let ctx = RuleContext::new(
+            &self.query_result,
+            self.root,
+            self.services,
+            self.options.clone(),
+        )
+        .ok()?;
 
         R::diagnostic(&ctx, &self.state).map(|diag| diag.into_analyzer_diagnostic(self.file_id))
     }
 
     fn action(&self) -> Option<AnalyzerAction<RuleLanguage<R>>> {
-        let ctx =
-            RuleContext::new(&self.query_result, self.root, self.services, self.options.clone()).ok()?;
+        let ctx = RuleContext::new(
+            &self.query_result,
+            self.root,
+            self.services,
+            self.options.clone(),
+        )
+        .ok()?;
 
         R::action(&ctx, &self.state).map(|action| AnalyzerAction {
             group_name: <R::Group as RuleGroup>::NAME,

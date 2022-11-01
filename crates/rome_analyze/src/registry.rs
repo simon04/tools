@@ -342,19 +342,24 @@ impl<L: Language + Default> RegistryRule<L> {
             }
 
             let rule_key = RuleKey::rule::<R>();
-            let options: Arc<R::Options> = params.services.get_service_by_id(&rule_key)
+            let options: Arc<R::Options> = params
+                .services
+                .get_service_by_id(&rule_key)
                 .expect("Expected config not found");
 
             // SAFETY: The rule should never get executed in the first place
             // if the query doesn't match
             let query_result =
                 <R::Query as Queryable>::unwrap_match(params.services, &params.query);
-            let ctx =
-                match RuleContext::new(&query_result, params.root, params.services, options.clone())
-                {
-                    Ok(ctx) => ctx,
-                    Err(error) => return Err(error),
-                };
+            let ctx = match RuleContext::new(
+                &query_result,
+                params.root,
+                params.services,
+                options.clone(),
+            ) {
+                Ok(ctx) => ctx,
+                Err(error) => return Err(error),
+            };
 
             for result in R::run(&ctx) {
                 let text_range =
@@ -368,7 +373,7 @@ impl<L: Language + Default> RegistryRule<L> {
                     query_result.clone(),
                     result,
                     params.services,
-                    options.clone()
+                    options.clone(),
                 ));
 
                 params.signal_queue.push(SignalEntry {
