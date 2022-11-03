@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     categories::ActionCategory,
     context::RuleContext,
@@ -134,23 +132,13 @@ where
     R: Rule + 'static,
 {
     fn diagnostic(&self) -> Option<AnalyzerDiagnostic> {
-        let ctx = RuleContext::new(
-            &self.query_result,
-            self.root,
-            self.services,
-        )
-        .ok()?;
+        let ctx = RuleContext::new(&self.query_result, self.root, self.services).ok()?;
 
         R::diagnostic(&ctx, &self.state).map(|diag| diag.into_analyzer_diagnostic(self.file_id))
     }
 
     fn action(&self) -> Option<AnalyzerAction<RuleLanguage<R>>> {
-        let ctx = RuleContext::new(
-            &self.query_result,
-            self.root,
-            self.services,
-        )
-        .ok()?;
+        let ctx = RuleContext::new(&self.query_result, self.root, self.services).ok()?;
 
         R::action(&ctx, &self.state).map(|action| AnalyzerAction {
             group_name: <R::Group as RuleGroup>::NAME,
