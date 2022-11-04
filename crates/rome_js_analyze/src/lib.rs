@@ -2,7 +2,7 @@ use control_flow::make_visitor;
 use rome_analyze::{
     AnalysisFilter, Analyzer, AnalyzerContext, AnalyzerOptions, AnalyzerSignal, ControlFlow,
     InspectMatcher, LanguageRoot, MatchQueryParams, MetadataRegistry, Phases, RuleAction,
-    RuleRegistry, ServiceBag, SyntaxVisitor,
+    RuleRegistry, ServiceBag, SuppressAction, SyntaxVisitor,
 };
 use rome_diagnostics::file::FileId;
 use rome_js_syntax::{
@@ -27,6 +27,7 @@ pub use crate::registry::visit_registry;
 use crate::semantic_services::{SemanticModelBuilderVisitor, SemanticModelVisitor};
 
 pub(crate) type JsRuleAction = RuleAction<JsLanguage>;
+pub(crate) type JsSuppressAction = SuppressAction<JsLanguage>;
 
 /// Return the static [MetadataRegistry] for the JS analyzer rules
 pub fn metadata() -> &'static MetadataRegistry {

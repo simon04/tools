@@ -12,7 +12,7 @@ use rome_diagnostics::v2::{
     Visit,
 };
 use rome_diagnostics::Applicability;
-use rome_rowan::{BatchMutation, Language, TextRange};
+use rome_rowan::{BatchMutation, Language, SyntaxNode, TextRange, TriviaPieceKind};
 use serde::de::DeserializeOwned;
 
 /// Static metadata containing information about a rule
@@ -328,6 +328,16 @@ pub trait Rule: RuleMeta {
         let (..) = (ctx, state);
         None
     }
+
+    /// Create a code action that allows to suppress the rule. The function
+    /// has to return the node to which the suppression comment needs to be applied.
+    fn can_suppress(
+        ctx: &RuleContext<Self>,
+        state: &Self::State,
+    ) -> Option<SuppressAction<RuleLanguage<Self>>> {
+        let _ = (ctx, state);
+        None
+    }
 }
 
 /// Diagnostic object returned by a single analysis rule
@@ -481,4 +491,16 @@ pub struct RuleAction<L: Language> {
     pub applicability: Applicability,
     pub message: MarkupBuf,
     pub mutation: BatchMutation<L>,
+}
+
+pub struct SuppressAction<L: Language>(SyntaxNode<L>);
+
+impl<L: Language> SuppressAction<L> {
+    pub fn new(node: SyntaxNode<L>) -> Self {
+        Self(node)
+    }
+
+    pub fn node(&self) -> &SyntaxNode<L> {
+        &self.0
+    }
 }

@@ -5,17 +5,20 @@ use crate::{
     rule::Rule,
     AnalyzerDiagnostic, AnalyzerOptions, Queryable, RuleGroup, ServiceBag,
 };
-use rome_console::MarkupBuf;
+use rome_console::{markup, MarkupBuf};
 use rome_diagnostics::file::FileSpan;
 use rome_diagnostics::v2::advice::CodeSuggestionAdvice;
+use rome_diagnostics::v2::Category;
 use rome_diagnostics::{file::FileId, Applicability, CodeSuggestion};
-use rome_rowan::{BatchMutation, Language};
+use rome_rowan::{AstNode, BatchMutation, BatchMutationExt, Language, TriviaPieceKind};
+use std::iter::FusedIterator;
+use std::vec::IntoIter;
 
 /// Event raised by the analyzer when a [Rule](crate::Rule)
 /// emits a diagnostic, a code action, or both
 pub trait AnalyzerSignal<L: Language> {
     fn diagnostic(&self) -> Option<AnalyzerDiagnostic>;
-    fn action(&self) -> Option<AnalyzerAction<L>>;
+    fn action(&self) -> Option<AnalyzerActionIter<L>>;
 }
 
 /// Simple implementation of [AnalyzerSignal] generating a [AnalyzerDiagnostic] from a
@@ -41,7 +44,7 @@ where
         Some((self.factory)())
     }
 
-    fn action(&self) -> Option<AnalyzerAction<L>> {
+    fn action(&self) -> Option<AnalyzerActionIter<L>> {
         None
     }
 }
@@ -62,37 +65,125 @@ pub struct AnalyzerAction<L: Language> {
     pub mutation: BatchMutation<L>,
 }
 
-impl<L> From<AnalyzerAction<L>> for CodeSuggestionAdvice<MarkupBuf>
-where
-    L: Language,
-{
-    fn from(action: AnalyzerAction<L>) -> Self {
-        let (_, suggestion) = action.mutation.as_text_edits().unwrap_or_default();
+pub struct AnalyzerActionIter<L: Language> {
+    file_id: FileId,
+    analyzer_actions: IntoIter<AnalyzerAction<L>>,
+}
 
-        CodeSuggestionAdvice {
-            applicability: action.applicability,
-            msg: action.message,
-            suggestion,
+impl<L: Language> AnalyzerActionIter<L> {
+    pub fn new(file_id: FileId, actions: Vec<AnalyzerAction<L>>) -> Self {
+        Self {
+            file_id,
+            analyzer_actions: actions.into_iter(),
         }
     }
 }
 
-impl<L> From<AnalyzerAction<L>> for CodeSuggestion
-where
-    L: Language,
-{
-    fn from(action: AnalyzerAction<L>) -> Self {
+impl<L: Language> Iterator for AnalyzerActionIter<L> {
+    type Item = AnalyzerAction<L>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.analyzer_actions.next()
+    }
+}
+
+impl<L: Language> FusedIterator for AnalyzerActionIter<L> {}
+
+impl<L: Language> ExactSizeIterator for AnalyzerActionIter<L> {
+    fn len(&self) -> usize {
+        self.analyzer_actions.len()
+    }
+}
+
+#[derive(Debug)]
+pub struct AnalyzerMutation<L: Language> {
+    pub message: MarkupBuf,
+    pub mutation: BatchMutation<L>,
+    pub category: ActionCategory,
+    pub rule_name: String,
+}
+
+pub struct CodeSuggestionAdviceIter<L: Language> {
+    iter: IntoIter<AnalyzerAction<L>>,
+}
+
+impl<L: Language> Iterator for CodeSuggestionAdviceIter<L> {
+    type Item = CodeSuggestionAdvice<MarkupBuf>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let action = self.iter.next()?;
+        let (_, suggestion) = action.mutation.as_text_edits().unwrap_or_default();
+        Some(CodeSuggestionAdvice {
+            applicability: action.applicability.clone(),
+            msg: action.message.clone(),
+            suggestion,
+        })
+    }
+}
+
+impl<L: Language> FusedIterator for CodeSuggestionAdviceIter<L> {}
+
+impl<L: Language> ExactSizeIterator for CodeSuggestionAdviceIter<L> {
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
+}
+
+pub struct CodeSuggestionIter<L: Language> {
+    file_id: FileId,
+    iter: IntoIter<AnalyzerAction<L>>,
+}
+
+pub struct CodeSuggestionItem<'a> {
+    pub category: ActionCategory,
+    pub suggestion: CodeSuggestion,
+    pub rule_name: &'a str,
+}
+
+impl<L: Language> Iterator for CodeSuggestionIter<L> {
+    type Item = CodeSuggestionItem<'static>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let action = self.iter.next()?;
         let (range, suggestion) = action.mutation.as_text_edits().unwrap_or_default();
 
-        CodeSuggestion {
-            span: FileSpan {
-                file: action.file_id,
-                range,
+        Some(CodeSuggestionItem {
+            rule_name: action.rule_name,
+            category: action.category,
+            suggestion: CodeSuggestion {
+                span: FileSpan {
+                    file: self.file_id,
+                    range,
+                },
+                applicability: action.applicability.clone(),
+                msg: action.message.clone(),
+                suggestion,
+                labels: vec![],
             },
-            applicability: action.applicability,
-            msg: action.message,
-            suggestion,
-            labels: vec![],
+        })
+    }
+}
+
+impl<L: Language> FusedIterator for CodeSuggestionIter<L> {}
+
+impl<L: Language> ExactSizeIterator for CodeSuggestionIter<L> {
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
+}
+
+impl<L: Language> AnalyzerActionIter<L> {
+    /// Returns an iterator
+    pub fn into_code_suggestion_advices(self) -> CodeSuggestionAdviceIter<L> {
+        CodeSuggestionAdviceIter {
+            iter: self.analyzer_actions.into_iter(),
+        }
+    }
+
+    pub fn into_code_suggestions(self) -> CodeSuggestionIter<L> {
+        CodeSuggestionIter {
+            file_id: self.file_id,
+            iter: self.analyzer_actions.into_iter(),
         }
     }
 }
@@ -141,18 +232,78 @@ where
         R::diagnostic(&ctx, &self.state).map(|diag| diag.into_analyzer_diagnostic(self.file_id))
     }
 
-    fn action(&self) -> Option<AnalyzerAction<RuleLanguage<R>>> {
+    fn action(&self) -> Option<AnalyzerActionIter<RuleLanguage<R>>> {
         let ctx =
             RuleContext::new(&self.query_result, self.root, self.services, &self.options).ok()?;
+        let mut actions = Vec::new();
+        if let Some(action) = R::action(&ctx, &self.state) {
+            actions.push(AnalyzerAction {
+                group_name: <R::Group as RuleGroup>::NAME,
+                rule_name: R::METADATA.name,
+                file_id: self.file_id,
+                category: action.category,
+                applicability: action.applicability,
+                mutation: action.mutation,
+                message: action.message,
+            });
+        };
+        let node_to_suppress = R::can_suppress(&ctx, &self.state);
+        let suppression_node = node_to_suppress.and_then(|suppression_node| {
+            let ancestor = suppression_node.node().ancestors().find_map(|node| {
+                if node
+                    .first_token()
+                    .map(|token| {
+                        token
+                            .leading_trivia()
+                            .pieces()
+                            .any(|trivia| trivia.is_newline())
+                    })
+                    .unwrap_or(false)
+                {
+                    Some(node)
+                } else {
+                    None
+                }
+            });
+            if ancestor.is_some() {
+                ancestor
+            } else {
+                Some(ctx.root().syntax().clone())
+            }
+        });
+        let suppression_action = suppression_node.and_then(|suppression_node| {
+            let first_token = suppression_node.first_token();
+            let rule = format!(
+                "lint({}/{})",
+                <R::Group as RuleGroup>::NAME,
+                R::METADATA.name
+            );
+            let mes = format!("// rome-ignore {}: suppressed", rule);
 
-        R::action(&ctx, &self.state).map(|action| AnalyzerAction {
-            group_name: <R::Group as RuleGroup>::NAME,
-            rule_name: R::METADATA.name,
-            file_id: self.file_id,
-            category: action.category,
-            applicability: action.applicability,
-            message: action.message,
-            mutation: action.mutation,
-        })
+            first_token.and_then(|first_token| {
+                let trivia = vec![
+                    (TriviaPieceKind::Newline, "\n"),
+                    (TriviaPieceKind::SingleLineComment, mes.as_str()),
+                    (TriviaPieceKind::Newline, "\n"),
+                ];
+                let mut mutation = ctx.root().begin();
+                let new_token = first_token.with_leading_trivia(trivia.clone());
+
+                mutation.replace_token_discard_trivia(first_token, new_token);
+                Some(AnalyzerAction {
+                    group_name: <R::Group as RuleGroup>::NAME,
+                    rule_name: R::METADATA.name,
+                    file_id: self.file_id,
+                    category: ActionCategory::QuickFix,
+                    applicability: Applicability::Always,
+                    mutation,
+                    message: markup! { "Suppress rule " {rule} }.to_owned(),
+                })
+            })
+        });
+        if let Some(suppression_action) = suppression_action {
+            actions.push(suppression_action);
+        }
+        Some(AnalyzerActionIter::new(self.file_id, actions))
     }
 }

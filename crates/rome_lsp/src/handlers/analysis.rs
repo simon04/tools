@@ -10,6 +10,7 @@ use rome_service::RomeError;
 use tower_lsp::lsp_types::{
     self as lsp, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
 };
+use tracing::debug;
 
 use crate::line_index::LineIndex;
 use crate::session::Session;
@@ -20,7 +21,7 @@ const FIX_ALL: CodeActionKind = CodeActionKind::new("source.fixAll");
 /// Queries the [`AnalysisServer`] for code actions of the file matching [FileId]
 ///
 /// If the AnalysisServer has no matching file, results in error.
-#[tracing::instrument(level = "trace", skip(session), err)]
+#[tracing::instrument(level = "debug", skip(session), err)]
 pub(crate) fn code_actions(
     session: &Session,
     params: CodeActionParams,
@@ -110,11 +111,13 @@ pub(crate) fn code_actions(
         });
     }
 
+    debug!("Suggested actions: \n{:?}", &actions);
+
     Ok(Some(actions))
 }
 
 /// Generate a "fix all" code action for the given document
-#[tracing::instrument(level = "trace", skip(session), err)]
+#[tracing::instrument(level = "debug", skip(session), err)]
 fn fix_all(
     session: &Session,
     url: &lsp::Url,

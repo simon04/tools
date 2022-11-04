@@ -4,7 +4,7 @@ use rome_rowan::TextRange;
 use rome_text_edit::TextEdit;
 use serde::{Deserialize, Serialize};
 
-/// A Suggestion that is provided by rslint, and
+/// A Suggestion that is provided by Rome's linter, and
 /// can be reported to the user, and can be automatically
 /// applied if it has the right [`Applicability`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
