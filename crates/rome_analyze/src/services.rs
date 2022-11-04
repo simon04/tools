@@ -2,8 +2,7 @@ use crate::{RuleKey, TextRange};
 use rome_diagnostics::v2::{Diagnostic, LineIndexBuf, Resource, Result, SourceCode};
 use std::{
     any::{Any, TypeId},
-    collections::{hash_map::DefaultHasher, HashMap},
-    hash::{Hash, Hasher},
+    collections::HashMap,
 };
 
 #[derive(Debug, Diagnostic)]
@@ -47,7 +46,7 @@ pub struct ServiceBag {
 }
 
 impl ServiceBag {
-    pub fn insert_service<T: 'static >(&mut self, service: T) {
+    pub fn insert_service<T: 'static>(&mut self, service: T) {
         let id = TypeId::of::<T>();
         self.services.insert(id, Box::new(service));
     }

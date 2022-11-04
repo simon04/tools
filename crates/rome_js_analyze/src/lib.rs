@@ -1,9 +1,9 @@
 use control_flow::make_visitor;
 use rome_analyze::{
-    options::OptionsDeserializationDiagnostic, AnalysisFilter, Analyzer, AnalyzerContext,
-    AnalyzerOptions, AnalyzerSignal, ControlFlow, DeserializableRuleOptions, InspectMatcher,
-    LanguageRoot, MatchQueryParams, MetadataRegistry, Phases, RuleAction, RuleRegistry, ServiceBag,
-    SyntaxVisitor, context::SericeBagRuleOptionsWrapper,
+    context::SericeBagRuleOptionsWrapper, options::OptionsDeserializationDiagnostic,
+    AnalysisFilter, Analyzer, AnalyzerContext, AnalyzerOptions, AnalyzerSignal, ControlFlow,
+    DeserializableRuleOptions, InspectMatcher, LanguageRoot, MatchQueryParams, MetadataRegistry,
+    Phases, RuleAction, RuleRegistry, ServiceBag, SyntaxVisitor,
 };
 use rome_diagnostics::file::FileId;
 use rome_js_syntax::{
@@ -11,7 +11,7 @@ use rome_js_syntax::{
     JsLanguage,
 };
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, error::Error, sync::Arc};
+use std::{borrow::Cow, error::Error};
 
 mod analyzers;
 mod assists;
@@ -41,7 +41,6 @@ pub fn metadata() -> &'static MetadataRegistry {
 
     &*METADATA
 }
-
 
 pub struct RulesConfigurator<'a> {
     options: &'a AnalyzerOptions,

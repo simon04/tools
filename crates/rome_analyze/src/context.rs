@@ -1,6 +1,6 @@
 use crate::{registry::RuleRoot, FromServices, Queryable, Rule, RuleKey, ServiceBag};
 use rome_diagnostics::v2::{Error, Result};
-use std::{ops::Deref, any::TypeId};
+use std::{any::TypeId, ops::Deref};
 
 type RuleQueryResult<R> = <<R as Rule>::Query as Queryable>::Output;
 type RuleServiceBag<R> = <<R as Rule>::Query as Queryable>::Services;
@@ -83,8 +83,10 @@ where
     /// }
     /// ```
     pub fn options(&self) -> &R::Options {
-        let SericeBagRuleOptionsWrapper(_, options) = 
-            self.bag.get_service::<SericeBagRuleOptionsWrapper<R>>().unwrap();
+        let SericeBagRuleOptionsWrapper(_, options) = self
+            .bag
+            .get_service::<SericeBagRuleOptionsWrapper<R>>()
+            .unwrap();
         options
     }
 }
