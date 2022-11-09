@@ -42,4 +42,4 @@ Visual Studio Code [doesn't support pre-release tags](https://code.visualstudio.
 * Previews use odd version numbers: 11, 13, 15, 17, ...
 
 ## Release Schedule
-Our goal is to release a new version of Rome every four weeks.
+Our goal is to release a new version of Rome every month.
