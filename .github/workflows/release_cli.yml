@@ -97,8 +97,10 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
             toolchain: stable
-            target: ${{ matrix.target }}
             default: true
+        
+      - name: Install Rust toolchain
+        run: rustup target add ${{ matrix.target }}
           
       - name: Install arm64 toolchain
         if: matrix.code-target == 'linux-arm64'
