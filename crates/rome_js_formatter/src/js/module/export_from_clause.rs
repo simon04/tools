@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use rome_formatter::{format_args, write};
 
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_js_syntax::JsExportFromClause;
 use rome_js_syntax::JsExportFromClauseFields;
@@ -22,7 +22,7 @@ impl FormatNodeRule<JsExportFromClause> for FormatJsExportFromClause {
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &format_args!(
                     star_token.format(),
                     space(),

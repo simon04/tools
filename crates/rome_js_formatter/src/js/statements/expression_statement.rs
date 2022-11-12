@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use rome_formatter::{write, CstFormatContext};
 
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_js_syntax::JsExpressionStatement;
 use rome_js_syntax::JsExpressionStatementFields;
@@ -20,7 +20,7 @@ impl FormatNodeRule<JsExpressionStatement> for FormatJsExpressionStatement {
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &expression.format(),
                 semicolon_token.as_ref()
             )]

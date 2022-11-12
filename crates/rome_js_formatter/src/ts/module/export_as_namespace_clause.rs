@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_formatter::{format_args, write};
 use rome_js_syntax::TsExportAsNamespaceClause;
@@ -23,7 +23,7 @@ impl FormatNodeRule<TsExportAsNamespaceClause> for FormatTsExportAsNamespaceClau
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &format_args!(
                     as_token.format(),
                     space(),

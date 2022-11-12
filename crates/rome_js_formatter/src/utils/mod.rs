@@ -18,6 +18,7 @@ pub(crate) mod test_call;
 mod typescript;
 
 use crate::context::trailing_comma::FormatTrailingComma;
+use crate::context::Semicolons;
 use crate::parentheses::is_callee;
 pub(crate) use crate::parentheses::resolve_left_most_expression;
 use crate::prelude::*;
@@ -36,6 +37,7 @@ use rome_js_syntax::{
 };
 use rome_js_syntax::{JsSyntaxNode, JsSyntaxToken};
 use rome_rowan::{AstNode, AstNodeList};
+use std::fmt::Pointer;
 pub(crate) use string_utils::*;
 pub(crate) use typescript::{
     is_object_like_type, should_hug_type, union_or_intersection_type_needs_parentheses,
@@ -209,9 +211,44 @@ where
     nodes_and_modifiers
 }
 
-/// Format a some code followed by an optional semicolon, and performs
-/// semicolon insertion if it was missing in the input source and the
-/// preceding element wasn't an unknown node
+/// Formats some code followed by the semicolon of the statement.
+///
+/// Performs semicolon insertion if it is missing in the input source and [JsFormatOptions::semicolons] is [Semicolons::Always].
+/// Removes the semicolon if the [JsFormatOptions::semicolons] is [Semicolons::AsNeeded]
+pub struct FormatWithStatementSemicolon<'a> {
+    content: &'a dyn Format<JsFormatContext>,
+    semicolon: Option<&'a JsSyntaxToken>,
+}
+
+impl<'a> FormatWithStatementSemicolon<'a> {
+    pub fn new(
+        content: &'a dyn Format<JsFormatContext>,
+        semicolon: Option<&'a JsSyntaxToken>,
+    ) -> Self {
+        Self { content, semicolon }
+    }
+}
+
+impl Format<JsFormatContext> for FormatWithStatementSemicolon<'_> {
+    fn fmt(&self, f: &mut Formatter<JsFormatContext>) -> FormatResult<()> {
+        match f.options().semicolons() {
+            Semicolons::Always => FormatWithSemicolon::new(self.content, self.semicolon).fmt(f),
+            Semicolons::AsNeeded => {
+                self.content.fmt(f)?;
+
+                if let Some(semicolon) = self.semicolon {
+                    write!(f, [format_removed(semicolon)])
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
+}
+
+/// Format some code followed by an optional semicolon.
+/// Performs semicolon insertion if it is missing in the input source, the [JsFormatOptions::semicolons] is [Semicolons::Always], and the
+/// preceding element isn't an unknown node
 pub struct FormatWithSemicolon<'a> {
     content: &'a dyn Format<JsFormatContext>,
     semicolon: Option<&'a JsSyntaxToken>,

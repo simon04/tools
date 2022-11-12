@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use rome_formatter::{format_args, write};
 
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_js_syntax::JsImport;
 use rome_js_syntax::JsImportFields;
@@ -19,7 +19,7 @@ impl FormatNodeRule<JsImport> for FormatJsImport {
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &format_args!(import_token.format(), space(), import_clause.format()),
                 semicolon_token.as_ref()
             )]

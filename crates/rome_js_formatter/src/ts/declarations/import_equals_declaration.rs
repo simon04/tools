@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_formatter::{format_args, write};
 use rome_js_syntax::TsImportEqualsDeclaration;
@@ -25,7 +25,7 @@ impl FormatNodeRule<TsImportEqualsDeclaration> for FormatTsImportEqualsDeclarati
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &format_args!(
                     import_token.format(),
                     space(),

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use crate::js::declarations::function_declaration::FormatFunction;
 use rome_formatter::write;
@@ -16,7 +16,7 @@ impl FormatNodeRule<TsDeclareFunctionDeclaration> for FormatTsDeclareFunctionDec
     ) -> FormatResult<()> {
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &FormatFunction::from(node.clone()),
                 node.semicolon_token().as_ref()
             )]

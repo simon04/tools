@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use crate::utils::{FormatWithSemicolon, JsAnyBinaryLikeExpression, JsAnyBinaryLikeLeftExpression};
+use crate::utils::{
+    FormatWithStatementSemicolon, JsAnyBinaryLikeExpression,
+    JsAnyBinaryLikeLeftExpression,
+};
 
 use rome_formatter::{format_args, write, CstFormatContext};
 
@@ -67,7 +70,7 @@ impl Format<JsFormatContext> for JsAnyStatementWithArgument {
         } else {
             write!(
                 f,
-                [FormatWithSemicolon::new(
+                [FormatWithStatementSemicolon::new(
                     &format_with(|f| {
                         if let Some(argument) = &argument {
                             write!(f, [space(), FormatReturnOrThrowArgument(argument)])?;

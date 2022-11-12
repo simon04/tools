@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::utils::{FormatStatementBody, FormatWithSemicolon};
+use crate::utils::{FormatStatementBody, FormatWithStatementSemicolon};
 use rome_formatter::{format_args, write};
 use rome_js_syntax::JsDoWhileStatementFields;
 use rome_js_syntax::{JsAnyStatement, JsDoWhileStatement};
@@ -53,7 +53,7 @@ impl FormatNodeRule<JsDoWhileStatement> for FormatJsDoWhileStatement {
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &format_statement,
                 semicolon_token.as_ref()
             )]

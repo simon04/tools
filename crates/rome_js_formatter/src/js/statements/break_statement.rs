@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use rome_formatter::write;
 
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_js_syntax::JsBreakStatement;
 use rome_js_syntax::JsBreakStatementFields;
@@ -19,7 +19,7 @@ impl FormatNodeRule<JsBreakStatement> for FormatJsBreakStatement {
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &format_with(|f: &mut JsFormatter| {
                     write!(f, [break_token.format()])?;
 

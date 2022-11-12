@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::utils::{node_has_leading_newline, FormatWithSemicolon};
+use crate::utils::{node_has_leading_newline, FormatWithStatementSemicolon};
 use rome_formatter::write;
 
 use rome_js_syntax::JsExportNamedFromClause;
@@ -58,7 +58,10 @@ impl FormatNodeRule<JsExportNamedFromClause> for FormatJsExportNamedFromClause {
 
         write!(
             f,
-            [FormatWithSemicolon::new(&content, semicolon_token.as_ref())]
+            [FormatWithStatementSemicolon::new(
+                &content,
+                semicolon_token.as_ref()
+            )]
         )
     }
 }

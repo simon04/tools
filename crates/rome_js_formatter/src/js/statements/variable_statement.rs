@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use rome_formatter::write;
 
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_js_syntax::JsVariableStatement;
 use rome_js_syntax::JsVariableStatementFields;
@@ -18,7 +18,7 @@ impl FormatNodeRule<JsVariableStatement> for FormatJsVariableStatement {
 
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &declaration.format(),
                 semicolon_token.as_ref()
             )]

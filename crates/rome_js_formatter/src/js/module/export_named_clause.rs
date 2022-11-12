@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use rome_formatter::{format_args, write};
 
-use crate::utils::FormatWithSemicolon;
+use crate::utils::{FormatWithStatementSemicolon};
 
 use rome_js_syntax::JsExportNamedClause;
 use rome_js_syntax::JsExportNamedClauseFields;
@@ -46,7 +46,10 @@ impl FormatNodeRule<JsExportNamedClause> for FormatJsExportNamedClause {
 
         write!(
             f,
-            [FormatWithSemicolon::new(&content, semicolon_token.as_ref())]
+            [FormatWithStatementSemicolon::new(
+                &content,
+                semicolon_token.as_ref()
+            )]
         )
     }
 

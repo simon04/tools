@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::utils::{FormatWithSemicolon, JsAnyAssignmentLike};
+use crate::utils::{FormatWithStatementSemicolon, JsAnyAssignmentLike};
 use rome_formatter::{format_args, write};
 use rome_js_syntax::TsTypeAliasDeclaration;
 
@@ -13,7 +13,7 @@ impl FormatNodeRule<TsTypeAliasDeclaration> for FormatTsTypeAliasDeclaration {
         let assignment_like = format_with(|f| write!(f, [JsAnyAssignmentLike::from(node.clone())]));
         write!(
             f,
-            [FormatWithSemicolon::new(
+            [FormatWithStatementSemicolon::new(
                 &format_args![type_token.format(), space(), group(&assignment_like)],
                 semicolon.as_ref()
             )]

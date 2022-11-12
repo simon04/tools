@@ -6,7 +6,7 @@ expression: semicolons-asi.js
 # Input
 
 ```js
-[1, 2]
+[1, 2];
 
 ```
 
